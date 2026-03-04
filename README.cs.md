@@ -2,8 +2,6 @@
 
 Tento repozitář obsahuje průběžně rozvíjený a postupně rozšiřovaný výzkumný projekt z oblasti teorie grafů. Projekt je koncipován jako výpočetní a strukturální rámec pro zkoumání různých problémů teorie grafů. Je navržen jako rozšiřitelný a bude postupně doplňován o další směry výzkumu.
 
-Aktuální zaměření
-
 V současnosti jsou hlavní cíle projektu následující:
 1. Generování všech graciózních Prüferových kódů.
 2. Enumerace všech neoznačených stromů s n vrcholy.
