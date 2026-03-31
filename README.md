@@ -2,7 +2,7 @@
 
 This repository contains an ongoing and continuously evolving research project in graph theory. The project is intended as a computational and structural framework for exploring various graph-theoretic problems. It is designed to be extensible and will be expanded with additional directions over time.
 
-Current Focus
+## Current Focus
 At present, the main objectives of the project are:
 
 1. Generation of all graceful Prüfer codes.
