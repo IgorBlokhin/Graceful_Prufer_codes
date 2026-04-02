@@ -575,18 +575,18 @@ class Graph:
 
         return delete_leaves(leaves)
 
-    def min_canonical_code(self):
+    def min_binary_code(self):
         center = self.find_center()
         if len(center) == 0:
             return ""
 
         if len(center) == 1:
             c = center[0]
-            return self.canonical_code(c, None)
+            return self.binary_code(c, None)
 
         c1, c2 = center[0], center[1]
-        code1 = self.canonical_code(c1)
-        code2 = self.canonical_code(c2)
+        code1 = self.binary_code(c1)
+        code2 = self.binary_code(c2)
         return min(code1, code2)
     
     def code_and_aut(self, node_id, parent_id=None):
