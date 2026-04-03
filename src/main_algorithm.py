@@ -27,30 +27,13 @@ def find_center(tree: Graph):
 
     return delete_leaves(leaves)
 
-def min_canonical_code(tree: Graph):
-    center = find_center(tree)
-    if len(center) == 0:
-        return ""
-
-    if len(center) == 1:
-        c = center[0]
-        return tree.canonical_code(c, None)
-
-    c1, c2 = center[0], center[1]
-    code1 = tree.canonical_code(c1, c2)
-    code2 = tree.canonical_code(c2, c1)
-    return min(code1, code2)
-
-def degree_signature(g: Graph):
-    return tuple(sorted(g.node(i).out_degree for i in g.node_ids()))
-
 def is_isomorphic_degree_signature(tree1: Graph, PATTERN_DEGREE):
-    if degree_signature(tree1) != PATTERN_DEGREE:
+    if tree1.degree_signature() != PATTERN_DEGREE:
         return False
     return True
 
-def is_isomorphic_binary_code(tree1: Graph, PATTERN_CANONICAL):
-    if min_canonical_code(tree1) != PATTERN_CANONICAL:
+def is_isomorphic_binary_code(tree1: Graph, PATTERN_BINARY):
+    if tree1.min_binary_code() != PATTERN_BINARY:
         return False
     return True
 
@@ -64,7 +47,7 @@ def check_batch_sheppard(codes_batch, n, involution=None, PATTERN_DEGREE=None, P
         n (int): počet vrcholů.
         involution (bool): zda se má přidat i involutorní kód.
         PATTERN_DEGREE (tuple | None): multimnožina stupňů vzorového stromu.
-        PATTERN_CANONICAL (str | None): kanonický kód vzorového stromu.
+        PATTERN_BINARY (str | None): binární kód vzorového stromu.
     
     Návratová hodnota:
         list[tuple[int, ...]]: seznam Prüferových kódů.
@@ -79,11 +62,11 @@ def check_batch_sheppard(codes_batch, n, involution=None, PATTERN_DEGREE=None, P
         if len(tree.dfs_pruchod()) != n:
             continue
 
-        if PATTERN_DEGREE is not None and PATTERN_CANONICAL is not None:
+        if PATTERN_DEGREE is not None and PATTERN_BINARY is not None:
             if is_isomorphic_degree_signature(tree, PATTERN_DEGREE) == False:
                 continue
 
-            if is_isomorphic_binary_code(tree, PATTERN_CANONICAL) == False:
+            if is_isomorphic_binary_code(tree, PATTERN_BINARY) == False:
                 continue
             
         pr = tuple(tree.to_prufer())
@@ -239,8 +222,8 @@ def graceful_prufer_codes_n(
         current_size = 0
 
         if pattern:
-            PATTERN_DEG = degree_signature(pattern)
-            PATTERN_CODE = min_canonical_code(pattern)
+            PATTERN_DEG = pattern.degree_signature()
+            PATTERN_BINARY = pattern.min_binary_code()
 
         def flush_buf():
             """
@@ -277,7 +260,7 @@ def graceful_prufer_codes_n(
                 if not batch:
                     break
                 if pattern:
-                    fut = ex.submit(check_batch_sheppard, batch, n, involution, PATTERN_DEG, PATTERN_CODE)
+                    fut = ex.submit(check_batch_sheppard, batch, n, involution, PATTERN_DEGREE, PATTERN_BINARY)
                 else:
                     fut = ex.submit(check_batch_sheppard, batch, n, involution)
                 inflight.add(fut)
