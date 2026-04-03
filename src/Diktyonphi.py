@@ -406,7 +406,7 @@ class Graph:
         """Stručná textová reprezentace vrcholů a hran."""
         return f"Vertexes: {list(self._nodes.keys())}, edges: {list(self._edges.keys())}"
 
-    def dfs_pruchod(self, id=None, visited=None, result=None):
+    def DFS(self, id=None, visited=None, result=None):
         """
         Jednoduchý DFS průchod grafem.
 
@@ -424,7 +424,7 @@ class Graph:
 
         for child in self.node(id)._neighbors:
             if child not in visited:
-                self.dfs_pruchod(child, visited, result)
+                self.DFS(child, visited, result)
         return result
     
     def is_tree(self):
