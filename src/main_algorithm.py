@@ -37,7 +37,7 @@ def is_isomorphic_binary_code(tree1: Graph, PATTERN_BINARY):
         return False
     return True
 
-def check_batch_sheppard(codes_batch, n, involution=None, PATTERN_DEGREE=None, PATTERN_CANONICAL=None):
+def check_batch_sheppard(codes_batch, n, involution=None, PATTERN_DEGREE=None, PATTERN_BINARY=None):
     """
     Zpracuje dávku Sheppardových kódů a vrátí odpovídající
     Prüferovy kódy stromů, které splňují zadané podmínky.
@@ -355,7 +355,7 @@ if __name__ == "__main__":
     graceful_prufer_codes_n(n=n,
                             workers=6, 
                             involution=True, 
-                            batch_size=12000, 
-                            output_dir=fr"C:\Users\Igor\Desktop",
+                            batch_size=30000, 
+                            output_dir=fr"C:\Users\Igor\Desktop\Python-programs\bachelors\Graphium\data\n={n}",
                             output_file=f"graceful_prufer_{n}.txt"
     )
