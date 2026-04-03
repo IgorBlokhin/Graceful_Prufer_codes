@@ -59,7 +59,7 @@ def check_batch_sheppard(codes_batch, n, involution=None, PATTERN_DEGREE=None, P
             continue
 
         tree = phi.from_sheppard(shep)
-        if len(tree.dfs_pruchod()) != n:
+        if len(tree.DFS()) != n:
             continue
 
         if PATTERN_DEGREE is not None and PATTERN_BINARY is not None:
