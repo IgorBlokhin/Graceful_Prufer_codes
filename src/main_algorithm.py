@@ -70,11 +70,10 @@ def check_batch_sheppard(codes_batch, n, involution=None, PATTERN_DEGREE=None, P
                 continue
             
         pr = tuple(tree.to_prufer())
+        results.append(pr)
+        
         if involution:
             inv_pr = tuple(tree.involute().to_prufer())
-
-        results.append(pr)
-        if involution:
             results.append(inv_pr)
 
     return results
