@@ -542,14 +542,14 @@ class Graph:
             new_graph.add_edge(u2, v2)
         return new_graph
     
-    def canonical_code(self, node_id, parent_id=None):
+    def binary_code(self, node_id, parent_id=None):
         children = [nid for nid in self.node(node_id).neighbor_ids
                     if parent_id is None or nid != parent_id]
 
         if not children:
             return "01"
 
-        codes = [self.canonical_code(child, node_id) for child in children]
+        codes = [self.binary_code(child, node_id) for child in children]
         codes.sort()
         code = "0" + "".join(codes) + "1"
         return code
