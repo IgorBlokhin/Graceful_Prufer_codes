@@ -751,10 +751,6 @@ def from_sheppard(code: list[int], steps: bool = False, complete: bool = False) 
             graph.node(u)._attrs["fillcolor"] = "#ffffff"
             graph.node(v)._attrs["fillcolor"] = "#ffffff"
 
-    if complete:
-        for i in range(len(code)):
-            graph.add_node(i)
-
     return graph
 
 
