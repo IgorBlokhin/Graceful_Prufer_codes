@@ -430,7 +430,7 @@ class Graph:
     def is_tree(self):
         """Ověřuje, zda je graf stromem."""
         if (len(self._edges) == len(self._nodes) - 1 and
-            len(self.dfs_pruchod(list(self._nodes)[0])) == len(self._nodes)):
+            len(self.DFS(list(self._nodes)[0])) == len(self._nodes)):
             return True
         return False
 
@@ -442,9 +442,6 @@ class Graph:
         - zapíše jeho souseda do kódu
         - opakuje se, dokud nezůstaly dva vrcholy
         """
-        if self.is_tree() is False:
-            return
-        
         code = []
         heap_listy = []
         tree = self.copy()
