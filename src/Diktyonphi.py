@@ -533,12 +533,12 @@ class Graph:
     def involute(self):
         """
         Inverzní transformace (involuce) vrcholů grafu:
-        - transformuje vrcholy podle mapy vrchol → (max_vrchol - vrchol)
+        - transformuje vrcholy podle mapy vrchol → (počet hran - vrchol)
         """
         new_graph = Graph(self.type)
-        max_vrchol = max(self._nodes)
+        edges = len(self._edges)
         for u, v in self._edges:
-            u2, v2 = max_vrchol - u, max_vrchol - v
+            u2, v2 = edges - u, edges - v
             new_graph.add_edge(u2, v2)
         return new_graph
     
