@@ -1,10 +1,16 @@
-from Diktyonphi import Graph
+from Diktyonphi import Graph, GraphType
 import Diktyonphi as phi
 import glob, time, os
 from itertools import islice
 from pathlib import Path
 from paths import data_dir
 from concurrent.futures import ProcessPoolExecutor, as_completed
+import shutil
+
+def print_status(msg: str) -> None:
+    width = shutil.get_terminal_size((100, 20)).columns - 1
+    msg = msg[:width]
+    print("\r" + msg.ljust(width), end="", flush=True)
 
 def find_center(tree: Graph):
     copy_tree = tree.copy()
@@ -37,7 +43,7 @@ def is_isomorphic_binary_code(tree1: Graph, PATTERN_BINARY):
         return False
     return True
 
-def check_batch_sheppard(codes_batch, n, involution=None, PATTERN_DEGREE=None, PATTERN_BINARY=None):
+def check_batch_sheppard(codes_batch, n, mode, involution=None, PATTERN_DEGREE=None, PATTERN_BINARY=None):
     """
     Zpracuje dávku Sheppardových kódů a vrátí odpovídající
     Prüferovy kódy stromů, které splňují zadané podmínky.
@@ -45,6 +51,7 @@ def check_batch_sheppard(codes_batch, n, involution=None, PATTERN_DEGREE=None, P
     Parametry:
         codes_batch (list): seznam Sheppardových kódů délky n-1.
         n (int): počet vrcholů.
+        mode (str): které ohodnocení se počítá (obecné graceful, ordered graceful či alpha).
         involution (bool): zda se má přidat i involutorní kód.
         PATTERN_DEGREE (tuple | None): multimnožina stupňů vzorového stromu.
         PATTERN_BINARY (str | None): binární kód vzorového stromu.
@@ -55,6 +62,10 @@ def check_batch_sheppard(codes_batch, n, involution=None, PATTERN_DEGREE=None, P
     results = []
 
     for shep in codes_batch:
+        if mode == "alpha":
+            if not phi.is_sheppard_code_alpha(shep):
+                continue
+
         if not phi.sheppard_uses_all_vertices(shep, n):
             continue
 
@@ -68,28 +79,32 @@ def check_batch_sheppard(codes_batch, n, involution=None, PATTERN_DEGREE=None, P
 
             if is_isomorphic_binary_code(tree, PATTERN_BINARY) == False:
                 continue
+
+        if mode == "ordered":
+            if not tree.is_labeling_ordered():
+                continue
             
         pr = tuple(tree.to_prufer())
         results.append(pr)
-        
+
         if involution:
             inv_pr = tuple(tree.involute().to_prufer())
             results.append(inv_pr)
 
     return results
 
-def sort_and_index_file(filepath: str, n: int) -> None:
+def sort_and_index_file(filepath: str, n: int, sort: bool = False, rank: bool = False) -> None:
     """
     Čte soubor, kde každý řádek představuje jeden Prüferův kód jako čísla oddělená mezerou:
         „x1 x2 ... x_{n-2}“
 
-    Podporuje také řádky s již přidaným indexem:
-        „<rank> x1 x2 ... x_{n-2}“
+    Volitelně:
+    - seřadí kódy podle lexikografického pořadí v prostoru Prüferových kódů,
+    - doplní ke každému kódu jeho lexikografický index.
 
-    Seřadí podle lexikografického pořadí v Prüferově prostoru a přepíše soubor:
-        „<rank>  x1 x2 ... x_{n-2}“
-
-    Index je zarovnán k pravému okraji.
+    Výstupní formát:
+    - bez indexace:      „x1 x2 ... x_{n-2}“
+    - s indexací:        „<index>  x1 x2 ... x_{n-2}“
     """
     if not os.path.isfile(filepath):
         print(f"[index] Soubor nenalezen: {filepath}")
@@ -117,7 +132,7 @@ def sort_and_index_file(filepath: str, n: int) -> None:
             else:
                 continue
 
-            if any(not (0 <= x <= n-1) for x in code):
+            if any(not (0 <= x <= n - 1) for x in code):
                 continue
 
             codes.append(code)
@@ -126,17 +141,26 @@ def sort_and_index_file(filepath: str, n: int) -> None:
         print(f"[index] Žádné platné kódy v souboru: {filepath}")
         return
 
-    codes.sort(key=lambda c: phi.prufer_lex_rank(c, n))
+    if sort:
+        codes.sort(key=lambda c: phi.prufer_lex_rank(c, n))
 
-    max_rank = phi.prufer_lex_rank(codes[-1], n)
-    w = len(str(max_rank))
+    w = 0
+    if rank:
+        max_rank = max(phi.prufer_lex_rank(code, n) for code in codes)
+        w = len(str(max_rank))
 
     with open(filepath, "w", encoding="utf-8") as f:
         for code in codes:
-            r = phi.prufer_lex_rank(code, n)
-            f.write(f"{r:>{w}}  " + " ".join(map(str, code)) + "\n")
+            if rank:
+                r = phi.prufer_lex_rank(code, n)
+                f.write(f"{r:>{w}}  " + " ".join(map(str, code)) + "\n")
+            else:
+                f.write(" ".join(map(str, code)) + "\n")
 
-    print(f"[index] Hotovo: seřazeno + index přepsán: {filepath}")
+    print(
+        f"[index] Hotovo: "
+        f"sort={sort}, rank={rank}, přepsán soubor: {filepath}"
+    )
 
 def take_batch(it, batch_size):
     """Vezme z iterátoru další dávku o velikosti batch_size (nebo méně)."""
@@ -144,6 +168,7 @@ def take_batch(it, batch_size):
 
 def graceful_prufer_codes_n(
     n=10,
+    mode: str | None = "graceful",
     pattern: Graph | None = None,
     output_dir: Path | None = None,
     output_file: str | None = None,
@@ -152,6 +177,7 @@ def graceful_prufer_codes_n(
     max_inflight: int | None = 12,
     heartbeat_sec: int | None = 4,
     buf_write_every: int | None = 30_000,
+    index: bool | None = False,
     sort: bool | None = False,
     involution: bool | None = True,
     max_file_mb: int | None = 50,
@@ -161,7 +187,8 @@ def graceful_prufer_codes_n(
     Prüferových kódů pro daný počet vrcholů n.
 
     Vstup:
-        n (int): počet vrcholů stromu.
+        n (int): počet vrcholů stromů.
+        mode (str): typ graciózního ohodnocení.
         pattern (Graph | None): volitelný vzorový strom pro filtraci.
         output_dir (Path | None): cílový adresář pro výstupní soubory.
         output_file (str | None): základní název výstupních souborů.
@@ -170,6 +197,7 @@ def graceful_prufer_codes_n(
         max_inflight (int): maximální počet paralelně zpracovávaných dávek.
         heartbeat_sec (int): interval výpisu průběžných statistik.
         buf_write_every (int): velikost interního bufferu pro zápis.
+        rank (bool): zda musí být ke kódu přepsáno jeho pořadové číslo
         sort (bool): zda mají být výstupní soubory lexikograficky seřazeny.
         involution (bool): zda se mají generovat i involutorní kódy.
         max_file_mb (int): maximální velikost jednoho výstupního souboru.
@@ -180,6 +208,7 @@ def graceful_prufer_codes_n(
         graciózní Prüferovy kódy v daném rozsahu.
     """
 
+    print(mode)
     if output_dir is not None:
         out_dir = Path(output_dir)
         out_dir.mkdir(parents=True, exist_ok=True)
@@ -188,7 +217,7 @@ def graceful_prufer_codes_n(
         out_dir.mkdir(parents=True, exist_ok=True)
 
     if output_file is None:
-        base_name = f"graceful_sheppard_{n}_sort" if sort else f"graceful_sheppard_{n}"
+        base_name = f"graceful_prufer_{n}_sort" if sort else f"graceful_prufer_{n}"
     else:
         base_name = Path(os.path.abspath(output_file)).stem
 
@@ -206,7 +235,7 @@ def graceful_prufer_codes_n(
     last_total_sheppard = 0
 
     print(
-        f"[main] (Sheppard) n={n}, workers={workers}, batch_size={batch_size}, "
+        f"[main] n={n}, workers={workers}, batch_size={batch_size}, "
         f"max_inflight={max_inflight}, max_file_mb={max_file_mb}",
         flush=True,
     )
@@ -221,8 +250,10 @@ def graceful_prufer_codes_n(
         current_size = 0
 
         if pattern:
-            PATTERN_DEG = pattern.degree_signature()
+            PATTERN_DEGREE = pattern.degree_signature()
             PATTERN_BINARY = pattern.min_binary_code()
+        else:
+            PATTERN_DEGREE, PATTERN_BINARY = None, None
 
         def flush_buf():
             """
@@ -258,17 +289,14 @@ def graceful_prufer_codes_n(
                 batch = take_batch(codes_iter, batch_size)
                 if not batch:
                     break
-                if pattern:
-                    fut = ex.submit(check_batch_sheppard, batch, n, involution, PATTERN_DEGREE, PATTERN_BINARY)
-                else:
-                    fut = ex.submit(check_batch_sheppard, batch, n, involution)
+                fut = ex.submit(check_batch_sheppard, batch, n, mode, involution, PATTERN_DEGREE, PATTERN_BINARY)
                 inflight.add(fut)
                 fut_sizes[fut] = len(batch)
 
             while inflight:
                 done_any = False
 
-                for fut in as_completed(list(inflight), timeout=heartbeat_sec):
+                for fut in as_completed(list(inflight)):
                     inflight.remove(fut)
                     batch_size_done = fut_sizes.pop(fut, 0)
 
@@ -284,10 +312,7 @@ def graceful_prufer_codes_n(
 
                     batch = take_batch(codes_iter, batch_size)
                     if batch:
-                        if pattern:
-                            new_fut = ex.submit(check_batch_sheppard, batch, n, involution, PATTERN_DEG, PATTERN_CODE)
-                        else:
-                            new_fut = ex.submit(check_batch_sheppard, batch, n, involution)
+                        new_fut = ex.submit(check_batch_sheppard, batch, n, mode, involution, PATTERN_DEGREE, PATTERN_BINARY)
                         inflight.add(new_fut)
                         fut_sizes[new_fut] = len(batch)
 
@@ -302,14 +327,15 @@ def graceful_prufer_codes_n(
                         (total_sheppard - last_total_sheppard) / (now - last_print)
                         if now > last_print else 0.0
                     )
-                    print(
-                        f"\r[hb] (Sheppard) {total_sheppard:,} Š-kódů | "
-                        f"{total_prufer:,} Prüfer-kódů | "
-                        f"průměrně: {avg:,.0f}/s | aktuálně: {inst:,.0f}/s | "
-                        f"uplynulo: {elapsed_str} | inflight={len(inflight)}",
-                        end="",
-                        flush=True,
+                    msg = (
+                        f"[hb] Š={total_sheppard:,} | "
+                        f"P={total_prufer:,} | "
+                        f"avg={avg:,.0f}/s | "
+                        f"cur={inst:,.0f}/s | "
+                        f"t={elapsed_str}"
                     )
+
+                    print_status(msg)
                     last_print = now
                     last_total_sheppard = total_sheppard
 
@@ -328,33 +354,38 @@ def graceful_prufer_codes_n(
     )
 
     print(
-        f"[done] (Sheppard) Zkontrolováno Š-kódů: {total_sheppard:,} | "
+        f"[done] Zkontrolováno Shepppard-kódů: {total_sheppard:,} | "
         f"{written}"
         f"průměrně ~{total_sheppard/elapsed:,.0f}/s | "
         f"výstup v adresáři: {out_dir} | soubory: {base_name}_part_XXX.txt",
         flush=True,
     )
 
-    if sort:
+    if sort or index:
         pattern_glob = str(out_dir / f"{base_name}_part_*.txt")
         part_files = sorted(glob.glob(pattern_glob))
 
         print(
-            f"[sort] sort=True, třídím jednotlivé části "
+            f"[post] sort={sort}, index={index}, zpracovávám jednotlivé části "
             f"({len(part_files)} souborů)...",
             flush=True,
         )
 
         for path in part_files:
-            print(f"[sort] -> {os.path.basename(path)}", flush=True)
-            sort_and_index_file(path, n)
+            print(f"[post] -> {os.path.basename(path)}", flush=True)
+            sort_and_index_file(path, n, sort, index)
 
 if __name__ == "__main__":
     n=11
     graceful_prufer_codes_n(n=n,
-                            workers=6, 
-                            involution=True, 
-                            batch_size=30000, 
+                            workers=6,
+                            involution=True,
+                            batch_size=80000, 
+                            buf_write_every=100,
+                            max_inflight=40,
+                            heartbeat_sec=5,
+                            sort = True,
+                            rank = True,
                             output_dir=fr"C:\Users\Igor\Desktop\Python-programs\bachelors\Graphium\data\n={n}",
-                            output_file=f"graceful_prufer_{n}.txt"
+                            output_file=f"graceful_trees_{n}.txt"
     )
